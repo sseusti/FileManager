@@ -1,16 +1,43 @@
+#include <string>
 #include <iostream>
+#include <filesystem>
 
-// TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+namespace fs = std::filesystem;
+
 int main() {
-    // TIP Press <shortcut actionId="RenameElement"/> when your caret is at the <b>lang</b> variable name to see how CLion can help you rename it.
-    auto lang = "C++";
-    std::cout << "Hello and welcome to " << lang << "!\n";
+    std::cout << "Welcome to FileManager!" << std::endl;
+    std::cout << "To leave enter \"exit\"" << std::endl;
 
-    for (int i = 1; i <= 5; i++) {
-        // TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-        std::cout << "i = " << i << std::endl;
+    std::string input;
+
+    while (true) {
+        std::cout << fs::current_path().filename() << "> ";
+        std::cin >> input;
+
+        if (input == "exit") {
+            std::cout << "Bye!" << std::endl;
+            break;
+        }
+
+        if (input == "pwd") {
+            std::cout << fs::current_path() << std::endl;
+        }
+
+        if (input == "ls") {
+            fs::directory_iterator dirIterator(fs::current_path());
+
+            for (const auto& entry : dirIterator) {
+                std::cout << (entry.is_directory() ? "directory " : "file ") << entry.path().filename().string() << std::endl;
+            }
+        }
+
+        if (input.substr(0, 3) == "cd ") {
+            std::string dir = input.substr(3);
+            fs::current_path(dir);
+        }
+
+        std::cout << "You entered: " << input << std::endl;
     }
 
     return 0;
-    // TIP See CLion help at <a href="https://www.jetbrains.com/help/clion/">jetbrains.com/help/clion/</a>. Also, you can try interactive lessons for CLion by selecting 'Help | Learn IDE Features' from the main menu.
 }
