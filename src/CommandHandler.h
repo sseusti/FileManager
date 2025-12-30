@@ -26,6 +26,7 @@ private:
     static void changeDirectory(const std::vector<std::string>& args);
     static void makeDirectory(const std::vector<std::string>& args);
     static void remove(const std::vector<std::string>& args);
+    static void showHelp(const std::vector<std::string>& args);
 
     static bool validateArguments(const std::vector<std::string>& args, size_t expected, const std::string& command);
     static void printError(const std::string& message);

@@ -25,7 +25,7 @@ int main() {
         if (input.empty()) continue;
 
         commandHandler.parseCommands(input);
-        std::cout << "You entered: " << input << std::endl;
+        std::cout << std::endl;
     }
 
     return 0;

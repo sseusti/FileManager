@@ -30,6 +30,10 @@ CommandHandler::CommandHandler() {
     commands["rm"] = [this](const std::vector<std::string>& args) {
         remove(args);
     };
+
+    commands["help"] = [this](const std::vector<std::string>& args) {
+        showHelp(args);
+    };
 }
 
 std::vector<std::string> CommandHandler::parseInput(const std::string& input) {
@@ -138,6 +142,16 @@ void CommandHandler::remove(const std::vector<std::string> &args) {
         fs::remove(dirName);
         std::cout << "File " << dirName << " deleted successfully." << std::endl;
     }
+}
+
+void CommandHandler::showHelp(const std::vector<std::string>& args) {
+    std::cout << "\n======Available Commands======" << std::endl;
+    std::cout << "pwd                             - Print current working directory" << std::endl;
+    std::cout << "ld                              - Show all files and directories in current path" << std::endl;
+    std::cout << "cd <name>                       - Change working directory" << std::endl;
+    std::cout << "mkdir <name>                    - Make directory called <name>" << std::endl;
+    std::cout << "rm <name>                       - Remove directory called <name>" << std::endl;
+    std::cout << "help                            - Show this help message" << std::endl;
 }
 
 bool CommandHandler::validateArguments(const std::vector<std::string>& args, size_t expected, const std::string& command) {
