@@ -24,7 +24,7 @@ int main() {
         }
         if (input.empty()) continue;
 
-        commandHandler.parseCommands(input);
+        commandHandler.parseAndExecute(input);
         std::cout << std::endl;
     }
 

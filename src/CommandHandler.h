@@ -7,17 +7,21 @@
 #include <vector>
 #include <filesystem>
 
+#include "CommandParser.h"
+
 namespace fs = std::filesystem;
 
 class CommandHandler {
 public:
     CommandHandler();
 
-    void parseCommands(const std::string& input);
-    void executeCommands(const std::string& cmd, const std::vector<std::string>& args);
+    void parseAndExecute(const std::string& input);
+    void executeParsed(const ParsedCommand& cmd);
+
+    void registerCommand(const std::string& name, const std::function<void(const ParsedCommand&)> handler);
 
 private:
-    std::map<std::string, std::function<void(const std::vector<std::string>&)>> commands;
+    std::map<std::string, std::function<void(const ParsedCommand&)>> commands;
 
     static std::vector<std::string> parseInput(const std::string& input);
 
@@ -30,5 +34,9 @@ private:
 
     static bool validateArguments(const std::vector<std::string>& args, size_t expected, const std::string& command);
     static void printError(const std::string& message);
+
+    std::vector<std::string> tokenize(const std::string& input);
+    void printUsage(const std::string& command);
 };
+
 #endif

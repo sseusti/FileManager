@@ -5,4 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(untitled1 main.cpp
         src/CommandHandler.cpp
-        src/CommandHandler.h)
+        src/CommandHandler.h
+        src/CommandParser.h
+        src/CommandParser.cpp)

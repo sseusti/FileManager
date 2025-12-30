@@ -48,7 +48,7 @@ std::vector<std::string> CommandHandler::parseInput(const std::string& input) {
     return tokens;
 }
 
-void CommandHandler::parseCommands(const std::string &input) {
+void CommandHandler::parseAndExecute(const std::string &input) {
     if (input.empty()) {
         return;
     }
