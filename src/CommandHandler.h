@@ -29,8 +29,14 @@ private:
     static void makeDirectory(const ParsedCommand& cmd);
     static void remove(const ParsedCommand& cmd);
     static void showHelp(const ParsedCommand& cmd);
+    static void touch(const ParsedCommand& cmd);
+
+    static bool confirmDeletion(const std::string& path, bool interactive);
+    static void removeFile(const std::string& path, bool force, bool interactive);
+    static void removeDirectoryRecursive(const std::string& path, bool force, bool interactive);
 
     static void printError(const std::string& message);
+    static void printWarning(const std::string& message);
 
     static std::vector<std::string> tokenize(const std::string& input);
     static void printUsage(const std::string& command);

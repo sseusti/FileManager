@@ -5,6 +5,7 @@
 #include <map>
 #include <functional>
 #include <filesystem>
+#include <fstream>
 
 #include "CommandHandler.h"
 
@@ -17,6 +18,7 @@ CommandHandler::CommandHandler() {
     registerCommand("mkdir", [this](const ParsedCommand& cmd) { makeDirectory(cmd); });
     registerCommand("rm", [this](const ParsedCommand& cmd) { remove(cmd); });
     registerCommand("help", [this](const ParsedCommand& cmd) { showHelp(cmd); });
+    registerCommand("touch", [this](const ParsedCommand& cmd) { touch(cmd); });
 }
 
 void CommandHandler::registerCommand(const std::string &name, const std::function<void(const ParsedCommand &)> handler) {
@@ -123,6 +125,47 @@ void CommandHandler::changeDirectory(const ParsedCommand& cmd) {
     }
 }
 
+void CommandHandler::touch(const ParsedCommand &cmd) {
+    if (cmd.arguments.empty()) {
+        printError("touch: missing file name");
+        printUsage("touch");
+        return;
+    }
+
+    bool verbose = cmd.flags.count("v") > 0 || cmd.flags.count("verbose") > 0;
+    bool force = cmd.flags.count("f") > 0 || cmd.flags.count("force") > 0;
+    const std::string file = cmd.arguments[0];
+
+    if (fs::exists(file)) {
+        if (!force) {
+            std::cout << "touch: file '" << file << "' already exists" << std::endl;
+            std::cout << "rm: rewrite '" << file << "'? [y/n] ";
+            std::string response;
+            std::getline(std::cin, response);
+            if (response == "y" || response == "Y") {
+                removeFile(file, true, false);
+                std::ofstream outputFile(file);
+                if (verbose) {
+                    std::cout << "touch: rewrote file '" << file << "'" << std::endl;
+                }
+            } else {
+                return;
+            }
+        } else {
+            removeFile(file, true, false);
+            std::ofstream outputFile(file);
+            if (verbose) {
+                std::cout << "touch: rewrote file '" << file << "'" << std::endl;
+            }
+        }
+    } else {
+        std::ofstream outputFile(file);
+        if (verbose) {
+            std::cout << "touch: created file '" << file << "'" << std::endl;
+        }
+    }
+}
+
 void CommandHandler::makeDirectory(const ParsedCommand &cmd) {
     if (cmd.arguments.empty()) {
         std::cout << "mkdir: missing directory name" << std::endl;
@@ -169,23 +212,6 @@ void CommandHandler::makeDirectory(const ParsedCommand &cmd) {
     }
 }
 
-void CommandHandler::remove(const ParsedCommand& cmd) {
-    if (cmd.arguments.empty()) {
-        std::cout << "rm: missing directory name" << std::endl;
-        return;
-    }
-
-    const std::string& dirName = cmd.arguments[0];
-
-    if (fs::is_directory(dirName)) {
-        fs::remove_all(dirName);
-        std::cout << "Directory " << dirName << " deleted successfully." << std::endl;
-    }  else {
-        fs::remove(dirName);
-        std::cout << "File " << dirName << " deleted successfully." << std::endl;
-    }
-}
-
 void CommandHandler::showHelp(const ParsedCommand& cmd) {
     if (!cmd.arguments.empty()) {
         printUsage(cmd.arguments[0]);
@@ -214,6 +240,30 @@ void CommandHandler::printUsage(const std::string& command) {
         std::cout << "  mkdir -p dir1/dir2/dir3       Create directory tree" << std::endl;
         std::cout << "  mkdir dir1 dir2 dir3          Create multiple directories" << std::endl;
         std::cout << "  mkdir -m 755 dir1             Create with specific permissions" << std::endl;
+    } else if (command == "rm") {
+        std::cout << "\nUsage: rm [OPTION]... [FILE]..." << std::endl;
+        std::cout << "Remove (unlink) the FILE(s).\n" << std::endl;
+        std::cout << "Options:" << std::endl;
+        std::cout << "  -f, --force           ignore nonexistent files and arguments, never prompt" << std::endl;
+        std::cout << "  -i                    prompt before every removal" << std::endl;
+        std::cout << "      --interactive[=WHEN]  prompt according to WHEN: never, once (-I), or" << std::endl;
+        std::cout << "                          always (-i); without WHEN, prompt always" << std::endl;
+        std::cout << "  -r, -R, --recursive   remove directories and their contents recursively" << std::endl;
+        std::cout << "  -v, --verbose         explain what is being done" << std::endl;
+        std::cout << "      --preserve-root   do not remove '/' (default)" << std::endl;
+        std::cout << "      --no-preserve-root  do not treat '/' specially" << std::endl;
+        std::cout << "\nExamples:" << std::endl;
+        std::cout << "  rm file.txt              Remove a file" << std::endl;
+        std::cout << "  rm -i file1 file2        Remove with confirmation" << std::endl;
+        std::cout << "  rm -rf directory/        Force remove directory recursively" << std::endl;
+        std::cout << "  rm *.txt                 Remove all .txt files" << std::endl;
+        std::cout << "  rm -i *.log              Remove all .log files with confirmation" << std::endl;
+
+        std::cout << "\nImportant notes:" << std::endl;
+        std::cout << "  - By default, rm does not remove directories." << std::endl;
+        std::cout << "  - Use -r or -R to remove directories and their contents." << std::endl;
+        std::cout << "  - The -f flag overrides -i and any confirmation prompts." << std::endl;
+        std::cout << "  - Be cautious with 'rm -rf', it can cause data loss!" << std::endl;
     } else {
         std::cout << "No help available for: " << command << std::endl;
     }
@@ -222,3 +272,158 @@ void CommandHandler::printUsage(const std::string& command) {
 void CommandHandler::printError(const std::string& message) {
     std::cerr << "Error: " << message << std::endl;
 }
+
+void CommandHandler::printWarning(const std::string& message) {
+    std::cerr << "Warning: " << message << std::endl;
+}
+
+void CommandHandler::remove(const ParsedCommand &cmd) {
+    if (cmd.arguments.empty()) {
+        printError("rm: missing operand");
+        printUsage("rm");
+        return;
+    }
+
+    bool interactive = cmd.flags.count("i") > 0 || cmd.flags.count("interactive") > 0;
+    bool force = cmd.flags.count("f") > 0 || cmd.flags.count("force") > 0;
+    bool recursive = cmd.flags.count("r") > 0 || cmd.flags.count("recursive") > 0 || cmd.flags.count("R") > 0;
+    bool verbose = cmd.flags.count("v") > 0 || cmd.flags.count("verbose") > 0;
+    bool preserveRoot = cmd.flags.count("preserve-root") > 0 || cmd.flags.count("no-preserve-root") == 0;
+
+    if (force) interactive = false;
+    if (preserveRoot) {
+        for (const auto& arg : cmd.arguments) {
+            fs::path p(arg);
+            p = fs::absolute(p);
+
+            if (p.root_path() == p) {
+                printError("rm: it is dangerous to operate recursively on '" + arg + "'");
+                printError("rm: use --no-preserve-root to override this failsafe");
+                return;
+            }
+        }
+    }
+
+    bool anyError = false;
+
+    for (const auto& pathStr : cmd.arguments) {
+        try {
+            fs::path path(pathStr);
+
+            if (!fs::exists(path)) {
+                if (!force) {
+                    printError("rm: cannot remove '" + pathStr + "': No such file or directory");
+                    anyError = true;
+                }
+                continue;
+            }
+
+            if (fs::is_directory(path)) {
+                if (recursive) {
+                    removeDirectoryRecursive(path.string(), force, interactive);
+                    if (verbose) {
+                        std::cout << "removed directory '" << pathStr << "'" << std::endl;
+                    }
+                } else {
+                    printError("rm: cannot remove '" + pathStr + "': Is a directory");
+                    anyError = true;
+                }
+            } else {
+                removeFile(path.string(), force, interactive);
+                if (verbose) {
+                    std::cout << "removed file '" << pathStr << "'" << std::endl;
+                }
+            }
+        } catch (const fs::filesystem_error& e) {
+            printError("rm: cannot remove '" + pathStr + "': " + e.what());
+            anyError = true;
+        } catch (const std::exception& e) {
+            printError("rm: error processing '" + pathStr + "': " + std::string(e.what()));
+            anyError = true;
+        }
+    }
+
+    if (anyError && !force) {
+        std::cerr << "rm: some files could not be removed" << std::endl;
+    }
+}
+
+bool CommandHandler::confirmDeletion(const std::string &path, bool interactive) {
+    if (!interactive) {
+        return true;
+    }
+
+    std::cout << "rm: remove '" << path << "'? [y/n] ";
+    std::string response;
+    std::getline(std::cin, response);
+
+    return !response.empty() && (response[0] == 'y' || response[0] == 'Y');
+}
+
+void CommandHandler::removeFile(const std::string &path, bool force, bool interactive) {
+    if (!confirmDeletion(path, interactive)) {
+        return;
+    }
+
+    try {
+        if (!fs::remove(path)) {
+            if (!force) {
+                throw fs::filesystem_error("Cannot remove file", fs::path(path),std::error_code());
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        if (!force) {
+            throw;
+        }
+    }
+}
+
+void CommandHandler::removeDirectoryRecursive(const std::string &path, bool force, bool interactive) {
+    if (fs::is_empty(path)) {
+        if (confirmDeletion(path, interactive)) {
+            try {
+                fs::remove(path);
+            } catch (...) {
+                if (!force) throw;
+            }
+        }
+        return;
+    }
+
+    if (interactive) {
+        std::cout << "rm: descend into directory '" << path << "'? [y/n] ";
+        std::string response;
+        std::getline(std::cin, response);
+
+        if (!(response[0] == 'y' || response[0] == 'Y') || response.empty()) {
+            return;
+        }
+    }
+
+    try {
+        for (const auto& entry : fs::directory_iterator(path)) {
+            std::string entryPath = entry.path().string();
+
+            if (fs::is_directory(entry.status())) {
+                removeDirectoryRecursive(entryPath, force, interactive);
+            } else {
+                removeFile(entryPath, force, interactive);
+            }
+        }
+
+        if (confirmDeletion(path, interactive)) {
+            fs::remove(path);
+        }
+    } catch (const fs::filesystem_error& e) {
+        if (!force) {
+            throw;
+        }
+
+        try {
+            fs::remove_all(path);
+        } catch (...) { }
+    }
+}
+
+
+
