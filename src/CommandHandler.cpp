@@ -15,7 +15,7 @@ namespace fs = std::filesystem;
 
 CommandHandler::CommandHandler() {
     registerCommand("pwd", [this](const ParsedCommand& cmd) { printWorkingDirectory(); });
-    registerCommand("ld", [this](const ParsedCommand& cmd) { listDirectory(); });
+    registerCommand("ld", [this](const ParsedCommand& cmd) { listDirectory(cmd); });
     registerCommand("cd", [this](const ParsedCommand& cmd) { changeDirectory(cmd); });
     registerCommand("mkdir", [this](const ParsedCommand& cmd) { makeDirectory(cmd); });
     registerCommand("rm", [this](const ParsedCommand& cmd) { remove(cmd); });
@@ -105,12 +105,66 @@ void CommandHandler::printWorkingDirectory() {
     printMessage(workingDirectory);
 }
 
-void CommandHandler::listDirectory() {
+void CommandHandler::listDirectory(const ParsedCommand& cmd) {
+    bool longFormat = cmd.flags.count("l") > 0 || cmd.flags.count("long") > 0;
+
     fs::directory_iterator dirIterator(fs::current_path());
 
     for (const auto& entry : dirIterator) {
-        std::string message = (entry.is_directory() ? "/" : "") + entry.path().filename().string();
-        printMessage(message);
+        if (!longFormat) {
+            std::string message = (entry.is_directory() ? "/" : (entry.is_symlink() ? "@" : "*")) + entry.path().filename().string();
+            printMessage(message);
+
+        } else {
+            std::string type = entry.path().extension().string();
+            std::string file = entry.path().filename().string();
+
+            char type_char = '-';
+            if (entry.is_directory()) type_char = 'd';
+            else if (entry.is_symlink()) type_char = 'l';
+
+            std::uintmax_t size = 0;
+            std::string size_str = "0";
+
+            try {
+                if (entry.is_regular_file() && !entry.is_symlink()) {
+                    size = fs::file_size(entry.path());
+
+                    if (size < 1024) {
+                        size_str = std::to_string(size) + " B";
+                    } else if (size < 1024 * 1024) {
+                        size_str = std::to_string(size / 1024) + " KB";
+                    } else if (size < 1024 * 1024 * 1024) {
+                        size_str = std::to_string(size / (1024 * 1024)) + " MB";
+                    } else {
+                        size_str = std::to_string(size / (1024 * 1024 * 1024)) + " GB";
+                    }
+                }
+            } catch (const std::exception& e) {
+                size_str = "N/A";
+            }
+
+            std::string time_str;
+            try {
+                auto ftime = fs::last_write_time(entry.path());
+                auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                    ftime - fs::file_time_type::clock::now() + std::chrono::system_clock::now()
+                );
+                std::time_t cftime = std::chrono::system_clock::to_time_t(sctp);
+                time_str = std::ctime(&cftime);
+                time_str.pop_back();
+            } catch (...) {
+                time_str = "N/A";
+            }
+
+            std::string message = std::format("{}{} {:>10} {:>20} {}",
+                type_char,
+                (entry.is_symlink() ? "l" : (entry.is_directory() ? "d" : "-")),
+                size_str,
+                time_str,
+                file);
+            printMessage(message);
+        }
     }
 }
 

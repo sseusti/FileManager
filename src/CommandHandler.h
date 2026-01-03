@@ -24,7 +24,7 @@ private:
     std::map<std::string, std::function<void(const ParsedCommand&)>> commands;
 
     static void printWorkingDirectory();
-    static void listDirectory();
+    static void listDirectory(const ParsedCommand& cmd);
     static void changeDirectory(const ParsedCommand& cmd);
     static void makeDirectory(const ParsedCommand& cmd);
     static void remove(const ParsedCommand& cmd);
