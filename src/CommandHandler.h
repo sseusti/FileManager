@@ -18,7 +18,7 @@ public:
     void parseAndExecute(const std::string& input);
     void executeParsed(const ParsedCommand& cmd);
 
-    void registerCommand(const std::string& name, std::function<void(const ParsedCommand&)> handler);
+    void registerCommand(const std::string& name, const std::function<void(const ParsedCommand&)>& handler);
 
 private:
     std::map<std::string, std::function<void(const ParsedCommand&)>> commands;
@@ -32,11 +32,13 @@ private:
     static void touch(const ParsedCommand& cmd);
 
     static bool confirmDeletion(const std::string& path, bool interactive);
+    static bool confirmChange(const std::string& path, bool interactive);
     static void removeFile(const std::string& path, bool force, bool interactive);
     static void removeDirectoryRecursive(const std::string& path, bool force, bool interactive);
 
     static void printError(const std::string& message);
     static void printWarning(const std::string& message);
+    static void printMessage(const std::string& message);
 
     static std::vector<std::string> tokenize(const std::string& input);
     static void printUsage(const std::string& command);

@@ -7,4 +7,8 @@ add_executable(untitled1 main.cpp
         src/CommandHandler.cpp
         src/CommandHandler.h
         src/CommandParser.h
-        src/CommandParser.cpp)
+        src/CommandParser.cpp
+)
+
+find_package(termcolor REQUIRED)
+target_link_libraries(untitled1 termcolor::termcolor)

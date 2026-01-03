@@ -1,5 +1,4 @@
 #include "CommandParser.h"
-#include <algorithm>
 
 bool CommandParser::isOption(const std::string &token) {
     return token.size() > 1 && token[0] == '-';
@@ -12,7 +11,7 @@ bool CommandParser::isFlag(const std::string &token) {
 ParsedCommand CommandParser::parse(const std::vector<std::string> &tokens) {
     ParsedCommand result;
     if (tokens.empty()) {
-        result.errors.push_back("No command provided");
+        result.errors.emplace_back("No command provided");
         return result;
     }
 

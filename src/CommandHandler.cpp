@@ -6,6 +6,8 @@
 #include <functional>
 #include <filesystem>
 #include <fstream>
+#include <format>
+#include <termcolor/termcolor.hpp>
 
 #include "CommandHandler.h"
 
@@ -21,7 +23,7 @@ CommandHandler::CommandHandler() {
     registerCommand("touch", [this](const ParsedCommand& cmd) { touch(cmd); });
 }
 
-void CommandHandler::registerCommand(const std::string &name, const std::function<void(const ParsedCommand &)> handler) {
+void CommandHandler::registerCommand(const std::string &name, const std::function<void(const ParsedCommand &)>& handler) {
     commands[name] = handler;
 }
 
@@ -99,20 +101,23 @@ void CommandHandler::executeParsed(const ParsedCommand& cmd) {
 }
 
 void CommandHandler::printWorkingDirectory() {
-     std::cout << fs::current_path().string() << std::endl;
+    const std::string workingDirectory = fs::current_path().string();
+    printMessage(workingDirectory);
 }
 
 void CommandHandler::listDirectory() {
     fs::directory_iterator dirIterator(fs::current_path());
 
     for (const auto& entry : dirIterator) {
-        std::cout << (entry.is_directory() ? "/" : "") << entry.path().filename().string() << std::endl;
+        std::string message = (entry.is_directory() ? "/" : "") + entry.path().filename().string();
+        printMessage(message);
     }
 }
 
 void CommandHandler::changeDirectory(const ParsedCommand& cmd) {
     if (cmd.arguments.empty()) {
-        std::cout << "cd: missing directory name" << std::endl;
+        printError("cd: missing directory name");
+        printUsage("cd");
         return;
     }
 
@@ -121,7 +126,8 @@ void CommandHandler::changeDirectory(const ParsedCommand& cmd) {
     try {
         std::filesystem::current_path(dir);
     } catch (...) {
-        std::cout << "cd: cannot change directory '" << dir << "'" << std::endl;
+        std::string message = std::format("cd: cannot change directory '{}'", dir);
+        printError(message);
     }
 }
 
@@ -134,19 +140,21 @@ void CommandHandler::touch(const ParsedCommand &cmd) {
 
     bool verbose = cmd.flags.count("v") > 0 || cmd.flags.count("verbose") > 0;
     bool force = cmd.flags.count("f") > 0 || cmd.flags.count("force") > 0;
+    bool interactive = cmd.flags.count("i") > 0 || cmd.flags.count("interactive") > 0;
     const std::string file = cmd.arguments[0];
+    std::string message;
 
     if (fs::exists(file)) {
         if (!force) {
-            std::cout << "touch: file '" << file << "' already exists" << std::endl;
-            std::cout << "rm: rewrite '" << file << "'? [y/n] ";
-            std::string response;
-            std::getline(std::cin, response);
-            if (response == "y" || response == "Y") {
+            message = std::format("touch: file '{}' already exists", file);
+            printMessage(message);
+
+            if (confirmChange(file, interactive)) {
                 removeFile(file, true, false);
                 std::ofstream outputFile(file);
                 if (verbose) {
-                    std::cout << "touch: rewrote file '" << file << "'" << std::endl;
+                    message = std::format("touch: rewrote file '{}'", file);
+                    printMessage(message);
                 }
             } else {
                 return;
@@ -155,25 +163,29 @@ void CommandHandler::touch(const ParsedCommand &cmd) {
             removeFile(file, true, false);
             std::ofstream outputFile(file);
             if (verbose) {
-                std::cout << "touch: rewrote file '" << file << "'" << std::endl;
+                message = std::format("touch: rewrote file '{}'", file);
+                printMessage(message);
             }
         }
     } else {
         std::ofstream outputFile(file);
         if (verbose) {
-            std::cout << "touch: created file '" << file << "'" << std::endl;
+            message = std::format("touch: rewrote file '{}'", file);
+            printMessage(message);
         }
     }
 }
 
 void CommandHandler::makeDirectory(const ParsedCommand &cmd) {
     if (cmd.arguments.empty()) {
-        std::cout << "mkdir: missing directory name" << std::endl;
+        printError("mkdir: missing directory name");
+        printUsage("mkdir");
         return;
     }
 
     bool createParents = cmd.flags.count("p") > 0 || cmd.flags.count("parents") > 0;
     bool verbose = cmd.flags.count("v") > 0 || cmd.flags.count("verbose") > 0;
+    std::string message;
 
     std::string modeStr;
     auto modeIt = cmd.options.find("m");
@@ -194,20 +206,24 @@ void CommandHandler::makeDirectory(const ParsedCommand &cmd) {
             if (createParents) {
                 fs::create_directories(dir);
                 if (verbose) {
-                    std::cout << "mkdir: created directory '" << dir << "'" << std::endl;
+                    message = std::format("mkdir: created directory '{}'", dir);
+                    printMessage(message);
                 }
             } else {
                 if (fs::exists(dir)) {
-                    std::cout << "mkdir: directory '" << dir << "' already exists" << std::endl;
+                    message = std::format("mkdir: file '{}' already exists", dir);
+                    printError(message);
                 } else {
                     fs::create_directory(dir);
                     if (verbose) {
-                        std::cout << "mkdir: created directory '" << dir << "'" << std::endl;
+                        message = std::format("mkdir: created directory '{}'", dir);
+                        printMessage(message);
                     }
                 }
             }
         } catch (const fs::filesystem_error& e) {
-            std::cout << "mkdir: cannot create directory '" << dir << "': " << e.what() << std::endl;
+            message = std::format("mkdir: failed to create directory '{}': {}", dir, e.what());
+            printError(message);
         }
     }
 }
@@ -270,11 +286,15 @@ void CommandHandler::printUsage(const std::string& command) {
 }
 
 void CommandHandler::printError(const std::string& message) {
-    std::cerr << "Error: " << message << std::endl;
+    std::cerr << "Error: " << message << std::endl << std::endl;
 }
 
 void CommandHandler::printWarning(const std::string& message) {
     std::cerr << "Warning: " << message << std::endl;
+}
+
+void CommandHandler::printMessage(const std::string& message) {
+    std::cout <<message << std::endl;
 }
 
 void CommandHandler::remove(const ParsedCommand &cmd) {
@@ -360,6 +380,18 @@ bool CommandHandler::confirmDeletion(const std::string &path, bool interactive) 
     return !response.empty() && (response[0] == 'y' || response[0] == 'Y');
 }
 
+bool CommandHandler::confirmChange(const std::string &file, bool interactive) {
+    if (!interactive) {
+        return true;
+    }
+
+    std::cout << "touch: rewrite '" << file << "'? [y/n] ";
+    std::string response;
+    std::getline(std::cin, response);
+
+    return !response.empty() && (response[0] == 'y' || response[0] == 'Y');
+}
+
 void CommandHandler::removeFile(const std::string &path, bool force, bool interactive) {
     if (!confirmDeletion(path, interactive)) {
         return;
@@ -424,6 +456,3 @@ void CommandHandler::removeDirectoryRecursive(const std::string &path, bool forc
         } catch (...) { }
     }
 }
-
-
-
