@@ -105,13 +105,23 @@ void CommandHandler::printWorkingDirectory() {
     printMessage(workingDirectory);
 }
 
+bool CommandHandler::isHidden(const auto& entry) {
+    std::string fileName = entry.path().filename();
+    if (fileName[0] == '.') {
+        return true;
+    }
+    return false;
+}
+
 void CommandHandler::listDirectory(const ParsedCommand& cmd) {
     bool longFormat = cmd.flags.count("l") > 0 || cmd.flags.count("long") > 0;
+    bool all = cmd.flags.count("all") > 0 || cmd.flags.count("a") > 0;
 
     fs::directory_iterator dirIterator(fs::current_path());
 
     for (const auto& entry : dirIterator) {
-        if (!longFormat) {
+        if (!isHidden(entry) || all) {
+            if (!longFormat) {
             std::string message = (entry.is_directory() ? "/" : (entry.is_symlink() ? "@" : "*")) + entry.path().filename().string();
             printMessage(message);
 
@@ -164,6 +174,7 @@ void CommandHandler::listDirectory(const ParsedCommand& cmd) {
                 time_str,
                 file);
             printMessage(message);
+            }
         }
     }
 }

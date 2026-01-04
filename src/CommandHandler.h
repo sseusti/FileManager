@@ -32,6 +32,7 @@ private:
     static void touch(const ParsedCommand& cmd);
 
     static bool confirmDeletion(const std::string& path, bool interactive);
+    static bool isHidden(const auto& entry);
     static bool confirmChange(const std::string& path, bool interactive);
     static void removeFile(const std::string& path, bool force, bool interactive);
     static void removeDirectoryRecursive(const std::string& path, bool force, bool interactive);
